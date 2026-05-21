@@ -10,12 +10,27 @@ metadata = MetaData(naming_convention={
 
 db = SQLAlchemy(metadata=metadata)
 
+class Review(db.Model):
+    __tablename__ = 'reviews'
+
+    id = db.Column(db.Integer, primary_key=True)
+    comment = db.Column(db.String)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'))
+    item_id = db.Column(db.Integer, db.ForeignKey('items.id'))
+
+    customer = db.relationship('Customer', back_populates='reviews')
+    item = db.relationship('Item', back_populates='reviews')
+
+    def __repr__(self):
+        return f'<Review {self.id}, {self.comment}>'
 
 class Customer(db.Model):
     __tablename__ = 'customers'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
+    reviews = db.relationship('Review', back_populates='customer')
+    items = association_proxy('reviews', 'item')
 
     def __repr__(self):
         return f'<Customer {self.id}, {self.name}>'
@@ -27,6 +42,49 @@ class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
     price = db.Column(db.Float)
+    reviews = db.relationship('Review', back_populates='item')
 
     def __repr__(self):
         return f'<Item {self.id}, {self.name}, {self.price}>'
+
+class CustomerSchema(Schema):
+    id = fields.Int()
+    name = fields.Str()
+    reviews = fields.Nested(
+        'ReviewSchema',
+        many=True,
+        exclude=('customer',)
+    )
+    
+    items = fields.Nested(
+        'ItemSchema',
+        many=True,
+        exclude=('reviews',)
+    )
+
+
+class ItemSchema(Schema):
+    id = fields.Int()
+    name = fields.Str()
+    price = fields.Float()
+    reviews = fields.Nested(
+        'ReviewSchema',
+        many=True,
+        exclude=('item',)
+    )
+
+
+class ReviewSchema(Schema):
+    id = fields.Int()
+    comment = fields.Str()
+    customer_id = fields.Int()
+    item_id = fields.Int()
+    customer = fields.Nested(
+        'CustomerSchema',
+        exclude=('reviews', 'items')
+    )
+
+    item = fields.Nested(
+        'ItemSchema',
+        exclude=('reviews',)
+    )
